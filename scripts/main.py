@@ -29,7 +29,6 @@ def main(args):
     seed_everything(args.seed)
 
     model_name = args.model_name
-    cache_dir = args.cache_dir
     lr = args.learning_rate
     max_length = args.max_len
     num_epochs = args.num_epochs
@@ -41,8 +40,23 @@ def main(args):
     lora_dropout = args.lora_dropout
     lora_alpha = args.lora_alpha
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
-    tokenizer.pad_token = tokenizer.eos_token
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    model = LLM(r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, model_name=model_name)
+
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model, device_ids=[0, 1])
+    model = model.to(device)
+
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer.pad_token = tokenizer.eos_token
+    except:
+        name = 'meta-llama/' + model_name.split("/")[-1]
+
+        tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=name)
+        tokenizer.pad_token = tokenizer.eos_token
+
+        tokenizer.save_pretrained(model_name)
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset("json", data_files=files)
@@ -52,13 +66,6 @@ def main(args):
     print("Training set size:", len(dataset['train']))
     print("Validation set size:", len(dataset['validation']))
     print("Test set size:", len(dataset['test']))
-
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model = LLM(r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, model_name=model_name, cache_dir=cache_dir)
-
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[0, 1])
-    model = model.to(device)
 
     training_args = TrainingArguments(auto_find_batch_size=True,
                                       num_train_epochs=num_epochs,
