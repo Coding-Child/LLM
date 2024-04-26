@@ -6,8 +6,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model_name', type=str, default='meta-llama/Llama-2-70b-chat-hf')
-    parser.add_argument('-c', '--cache_dir', type=str, default='llm_ckpt')
+    parser.add_argument('-m', '--model_name', type=str, default='save_model/Llama-2-70b-chat-hf')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4)
     parser.add_argument('-e', '--num_epochs', type=int, default=200)
     parser.add_argument('-ml', '--max_len', type=int, default=512)
