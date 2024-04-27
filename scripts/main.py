@@ -39,13 +39,8 @@ def main(args):
     r = args.r
     lora_dropout = args.lora_dropout
     lora_alpha = args.lora_alpha
-
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
     model = LLM(r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, model_name=model_name)
-
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model, device_ids=[0, 1])
-    model = model.to(device)
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
