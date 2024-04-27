@@ -87,3 +87,4 @@ def main(args):
     model.llm.config.use_cache = False
     trainer.train()
     trainer.evaluate(dataset['test'])
+    model.save_pretrained("trained_model")
