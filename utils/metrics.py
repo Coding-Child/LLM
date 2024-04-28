@@ -9,7 +9,7 @@ def compute_metrics(pred):
     bleu = load('bleu')
     rouge = load('rouge')
 
-    bleu_score = bleu.compute(predictions=preds, references=labels)['bleu']
-    rouge_score = rouge.compute(predictions=preds, references=labels)['rougeL']
+    bleu_score = bleu.compute(predictions=[preds], references=[[labels]])['bleu']
+    rouge_score = rouge.compute(predictions=[preds], references=[[labels]])['rougeL']
 
-    return {'bleu': bleu_score, 'rouge': rouge_score}
+    return {'eval_bleu': bleu_score, 'eval_rouge': rouge_score}
