@@ -1,4 +1,4 @@
-from datasets import load_metric
+from evaluate import load
 
 
 def compute_metrics(pred):
@@ -6,8 +6,10 @@ def compute_metrics(pred):
     preds = pred.predictions
     preds = preds.argmax(-1)
 
-    bleu = load_metric('bleu')
+    bleu = load('bleu')
+    rouge = load('rouge')
 
-    bleu_score = bleu.compute(predictions=preds, references=labels, trust_remote_code=True)
-    
-    return {'bleu': bleu_score['bleu']}
+    bleu_score = bleu.compute(predictions=preds, references=labels)['bleu']
+    rouge_score = rouge.compute(predictions=preds, references=labels)['rougeL']
+
+    return {'bleu': bleu_score, 'rouge': rouge_score}
