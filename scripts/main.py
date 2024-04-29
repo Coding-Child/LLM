@@ -72,8 +72,6 @@ def main(args):
                                       logging_dir='./logs',
                                       save_strategy='epoch',
                                       evaluation_strategy='epoch',
-                                      load_best_model_at_end=True,
-                                      metric_for_best_model='bleu',
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=4,
                                       report_to="wandb"
