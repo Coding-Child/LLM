@@ -80,6 +80,7 @@ def main(args):
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=4,
                                       load_best_model_at_end=True,
+                                      metric_for_best_model='eval_loss', 
                                       greater_is_better=False,
                                       report_to="wandb"
                                       )
