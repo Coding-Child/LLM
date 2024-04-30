@@ -16,12 +16,12 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
-    metric = load_metric('bleu')
+    metric = load_metric('f1')
 
     logits, labels = eval_pred
     predictions = logits.argmax(-1)
 
-    return metric.compute(predictions=[predictions], references=[labels])
+    return metric.compute(predictions=predictions, references=labels)
 
 
 def seed_everything(seed):
