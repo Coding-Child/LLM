@@ -3,6 +3,7 @@ import torch.nn as nn
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling, Trainer, TrainingArguments
 from datasets import load_dataset
+from evaluate import load
 
 import os
 import random
@@ -30,6 +31,7 @@ def main(args):
 
     model_name = args.model_name
     lr = args.learning_rate
+    batch_size = args.batch_size
     max_length = args.max_len
     num_epochs = args.num_epochs
     train_path = args.train_path
@@ -39,8 +41,13 @@ def main(args):
     r = args.r
     lora_dropout = args.lora_dropout
     lora_alpha = args.lora_alpha
-    
+
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     model = LLM(r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, model_name=model_name)
+
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model, device_ids=[0, 1])
+    model = model.to(device)
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -62,11 +69,12 @@ def main(args):
     print("Validation set size:", len(dataset['validation']))
     print("Test set size:", len(dataset['test']))
 
-    training_args = TrainingArguments(auto_find_batch_size=True,
+    training_args = TrainingArguments(per_device_train_batch_size=batch_size,
+                                      per_device_eval_batch_size=batch_size,
                                       num_train_epochs=num_epochs,
                                       learning_rate=lr,
                                       bf16=True,
-                                      save_total_limit=4,
+                                      save_total_limit=5,
                                       logging_steps=10,
                                       output_dir=save_path,
                                       logging_dir='./logs',
@@ -74,6 +82,9 @@ def main(args):
                                       evaluation_strategy='epoch',
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=4,
+                                      load_best_model_at_end=True,
+                                      metric_for_best_model='bleu',
+                                      greater_is_better=True,
                                       report_to="wandb"
                                       )
     trainer = Trainer(model=model,
@@ -81,10 +92,12 @@ def main(args):
                       train_dataset=dataset['train'],
                       eval_dataset=dataset['validation'],
                       tokenizer=tokenizer,
-                      compute_metrics=compute_metrics,
+                      compute_metrics=load('bleu'),
                       data_collator=data_collator
                       )
     model.llm.config.use_cache = False
     trainer.train()
-    trainer.evaluate(dataset['test'])
-    model.save_pretrained("trained_model")
+    model.save_pretrained(save_path)
+
+    result = trainer.evaluate(dataset['test'])
+    print(result)
