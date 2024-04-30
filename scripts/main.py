@@ -95,6 +95,7 @@ def main(args):
                                       greater_is_better=True,
                                       report_to="wandb"
                                       )
+    
     trainer = Trainer(model=model,
                       args=training_args,
                       train_dataset=dataset['train'],
