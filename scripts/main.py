@@ -14,13 +14,13 @@ os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
-def compute_metrics(pred):
-    labels = pred.label_ids
-    preds = np.argmax(pred.predictions, axis=-1)
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = torch.argmax(logits, dim=-1)
 
     metric = load_metric('bleu')
 
-    return metric.compute(predictions=preds, references=labels)
+    return metric.compute(predictions=predictions, references=labels)
 
 
 def seed_everything(seed):
@@ -81,6 +81,7 @@ def main(args):
                                       num_train_epochs=num_epochs,
                                       learning_rate=lr,
                                       bf16=True,
+                                      label_names=['labels'],
                                       save_total_limit=5,
                                       logging_steps=10,
                                       output_dir=save_path,
