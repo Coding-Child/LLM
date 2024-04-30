@@ -15,15 +15,6 @@ os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
-def compute_metrics(eval_pred):
-    metric = load_metric('f1')
-
-    logits, labels = eval_pred
-    predictions = logits.argmax(-1)
-
-    return metric.compute(predictions=predictions, references=labels)
-
-
 def seed_everything(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -89,7 +80,7 @@ def main(args):
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=4,
                                       load_best_model_at_end=True,
-                                      metric_for_best_model='f1',
+                                      metric_for_best_model='loss',
                                       greater_is_better=True,
                                       report_to="wandb"
                                       )
@@ -99,7 +90,6 @@ def main(args):
                       train_dataset=dataset['train'].shuffle(seed=args.seed),
                       eval_dataset=dataset['validation'],
                       tokenizer=tokenizer,
-                      compute_metrics=compute_metrics,
                       data_collator=data_collator
                       )
     model.llm.config.use_cache = False
