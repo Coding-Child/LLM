@@ -8,6 +8,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--model_name', type=str, default='save_model/Llama-2-70b-chat-hf')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4)
+    parser.add_argument('-bs', '--batch_size', type=int, default=16)
     parser.add_argument('-e', '--num_epochs', type=int, default=200)
     parser.add_argument('-ml', '--max_len', type=int, default=512)
     parser.add_argument('-trn', '--train_path', type=str, default='data/english-train.json')
