@@ -15,10 +15,10 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
+    metric = load_metric('bleu')
+    
     logits, labels = eval_pred
     predictions = torch.argmax(logits, dim=-1)
-
-    metric = load_metric('bleu')
 
     return metric.compute(predictions=predictions, references=labels)
 
