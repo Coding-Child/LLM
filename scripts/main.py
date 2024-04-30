@@ -39,7 +39,6 @@ def main(args):
 
     model_name = args.model_name
     lr = args.learning_rate
-    max_length = args.max_len
     num_epochs = args.num_epochs
     train_path = args.train_path
     val_path = args.val_path
@@ -69,7 +68,7 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset("json", data_files=files)
-    dataset = dataset.map(lambda x: preprocess_data(x, tokenizer, max_length),
+    dataset = dataset.map(lambda x: preprocess_data(x, tokenizer),
                           remove_columns=['description', 'utterances'])
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
@@ -81,7 +80,6 @@ def main(args):
                                       num_train_epochs=num_epochs,
                                       learning_rate=lr,
                                       bf16=True,
-                                      label_names=['labels'],
                                       save_total_limit=5,
                                       logging_steps=10,
                                       output_dir=save_path,
@@ -98,7 +96,7 @@ def main(args):
 
     trainer = Trainer(model=model,
                       args=training_args,
-                      train_dataset=dataset['train'],
+                      train_dataset=dataset['train'].shuffle(seed=args.seed),
                       eval_dataset=dataset['validation'],
                       tokenizer=tokenizer,
                       compute_metrics=compute_metrics,
