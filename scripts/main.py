@@ -81,7 +81,7 @@ def main(args):
                                       gradient_accumulation_steps=4,
                                       load_best_model_at_end=True,
                                       metric_for_best_model='loss',
-                                      greater_is_better=True,
+                                      greater_is_better=False,
                                       report_to="wandb"
                                       )
 
