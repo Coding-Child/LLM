@@ -20,5 +20,5 @@ python run.py [-h] [-m MODEL_NAME] [-c CACHE_DIR] [-lr LEARNING_RATE] [-e NUM_EP
 
 ## Quick Start
 ```
-python run.py -m meta-llama/Llama-2-70b-chat-hf -c llm_ckpt -lr 1e-4 -e 500 -trn [YOUR_TRAINSET_PATH] -val [YOUR_VALSET_PATH] -tst [YOUR_TESTSET_PATH] -sp checkpoints
+python run.py -m save_model/Llama-2-13b-chat-hf -c llm_ckpt -lr 1e-4 -e 150 -trn data/english-train.json -val data/english-dev.json -tst data/english-test.json -sp save_ckpt
 ```
