@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling, Trainer, TrainingArguments
-from datasets import load_dataset
-from evaluate import load
+from datasets import load_dataset, load_metric
 
 import os
 import random
@@ -11,9 +10,17 @@ import numpy as np
 
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import preprocess_data
-from utils.metrics import compute_metrics
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
+
+
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = np.argmax(pred.predictions, axis=-1)
+
+    metric = load_metric('bleu')
+
+    return metric.compute(predictions=preds, references=labels)
 
 
 def seed_everything(seed):
@@ -92,7 +99,7 @@ def main(args):
                       train_dataset=dataset['train'],
                       eval_dataset=dataset['validation'],
                       tokenizer=tokenizer,
-                      compute_metrics=load('bleu'),
+                      compute_metrics=compute_metrics,
                       data_collator=data_collator
                       )
     model.llm.config.use_cache = False
