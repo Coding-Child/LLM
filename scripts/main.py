@@ -10,17 +10,18 @@ import numpy as np
 
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import preprocess_data
+
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
     metric = load_metric('bleu')
-    
-    logits, labels = eval_pred
-    predictions = torch.argmax(logits, dim=-1)
 
-    return metric.compute(predictions=predictions, references=labels)
+    logits, labels = eval_pred
+    predictions = logits.argmax(-1)
+
+    return metric.compute(predictions=[predictions], references=[labels])
 
 
 def seed_everything(seed):
@@ -38,7 +39,6 @@ def main(args):
 
     model_name = args.model_name
     lr = args.learning_rate
-    batch_size = args.batch_size
     max_length = args.max_len
     num_epochs = args.num_epochs
     train_path = args.train_path
@@ -69,15 +69,15 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset("json", data_files=files)
-    dataset = dataset.map(lambda x: preprocess_data(x, tokenizer, max_length), remove_columns=['description', 'utterances'])
+    dataset = dataset.map(lambda x: preprocess_data(x, tokenizer, max_length),
+                          remove_columns=['description', 'utterances'])
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
     print("Training set size:", len(dataset['train']))
     print("Validation set size:", len(dataset['validation']))
     print("Test set size:", len(dataset['test']))
 
-    training_args = TrainingArguments(per_device_train_batch_size=batch_size,
-                                      per_device_eval_batch_size=batch_size,
+    training_args = TrainingArguments(auto_find_batch_size=True,
                                       num_train_epochs=num_epochs,
                                       learning_rate=lr,
                                       bf16=True,
@@ -95,7 +95,7 @@ def main(args):
                                       greater_is_better=True,
                                       report_to="wandb"
                                       )
-    
+
     trainer = Trainer(model=model,
                       args=training_args,
                       train_dataset=dataset['train'],
