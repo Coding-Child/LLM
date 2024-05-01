@@ -72,8 +72,8 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset("json", data_files=files)
-    dataset = dataset.map(lambda x: preprocess_data(x, tokenizer),
-                          remove_columns=['description', 'utterances'])
+    dataset = dataset.map(lambda x: preprocess_data(x, tokenizer))
+    dataset = dataset.remove_columns(['description', 'utterances'])
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
