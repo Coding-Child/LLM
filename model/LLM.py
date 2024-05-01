@@ -68,8 +68,7 @@ class LLM(nn.Module):
                  r: int = 8,
                  lora_alpha: int = 32,
                  lora_dropout: float = 0.1,
-                 model_name: str = 'meta-llama/Llama-2-7b-chat-hf',
-                 cache_dir: str = 'llm_ckpt'):
+                 model_name: str = 'meta-llama/Llama-2-7b-chat-hf'):
         super(LLM, self).__init__()
 
         bnb_config = BitsAndBytesConfig(load_in_4bit=True,
@@ -79,7 +78,6 @@ class LLM(nn.Module):
                                         )
 
         llm = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=model_name,
-                                                   cache_dir=cache_dir,
                                                    device_map="auto",
                                                    trust_remote_code=True,
                                                    quantization_config=bnb_config,
@@ -91,6 +89,8 @@ class LLM(nn.Module):
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM,
                                  inference_mode=False,
                                  r=r,
+                                 target_modules=['q_proj', 'k_proj', 'v_proj', 'o_proj', 
+                                                 'gate_proj', 'down_proj', 'up_proj', 'lm_head'],
                                  lora_alpha=lora_alpha,
                                  lora_dropout=lora_dropout,
                                  )
