@@ -15,6 +15,19 @@ os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
+def compute_metrics(eval_pred):
+    f1_metric = load_metric('f1')
+    bleu_metric = load_metric('bleu')
+
+    logits, labels = eval_pred
+    predictions = logits.argmax(-1)
+
+    bleu = bleu_metric.compute(predictions=[predictions], references=[labels])['bleu']
+    f1 = f1_metric.compute(predictions=predictions, references=labels)['f1']
+
+    return {'f1': f1, 'bleu': bleu}
+
+
 def seed_everything(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -61,6 +74,7 @@ def main(args):
     dataset = load_dataset("json", data_files=files)
     dataset = dataset.map(lambda x: preprocess_data(x, tokenizer),
                           remove_columns=['description', 'utterances'])
+
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
     print("Training set size:", len(dataset['train']))
@@ -79,9 +93,10 @@ def main(args):
                                       evaluation_strategy='epoch',
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=4,
+                                      label_names=['labels'],
                                       load_best_model_at_end=True,
-                                      metric_for_best_model='eval_loss',
-                                      greater_is_better=False,
+                                      metric_for_best_model='f1',
+                                      greater_is_better=True,
                                       report_to="wandb"
                                       )
 
@@ -90,6 +105,7 @@ def main(args):
                       train_dataset=dataset['train'].shuffle(seed=args.seed),
                       eval_dataset=dataset['validation'],
                       tokenizer=tokenizer,
+                      compute_metrics=compute_metrics,
                       data_collator=data_collator
                       )
     model.llm.config.use_cache = False
