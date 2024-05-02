@@ -49,8 +49,7 @@ class MedDialogueDataset(Dataset):
         return len(self.inputs)
 
     def __getitem__(self, idx: int):
-        return {'end_loc': self.inputs[idx]['end_loc'],
-                'input_ids': self.inputs[idx]['input_ids'],
+        return {'input_ids': self.inputs[idx]['input_ids'],
                 'attention_mask': self.inputs[idx]['attention_mask'],
                 'labels': self.labels[idx]
                 }
