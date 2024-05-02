@@ -45,7 +45,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 wandb.log({"step_train_loss": loss.item(), "global_step": step})
 
                 # TODO: Implement perplexity calculation
-                nlls.append(loss.item())
+                nlls.append(loss)
 
                 # TODO: Implement Macro F1-score calculation
                 output_logits = output.logits.argmax(-1).detach().cpu()
