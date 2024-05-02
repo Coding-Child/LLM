@@ -43,6 +43,7 @@ def main(args):
 
     model_name = args.model_name
     lr = args.learning_rate
+    batch_size = args.batch_size
     num_epochs = args.num_epochs
     train_path = args.train_path
     val_path = args.val_path
@@ -80,7 +81,8 @@ def main(args):
     print("Validation set size:", len(dataset['validation']))
     print("Test set size:", len(dataset['test']))
 
-    training_args = TrainingArguments(auto_find_batch_size=True,
+    training_args = TrainingArguments(per_device_train_batch_size=batch_size,
+                                      per_device_eval_batch_size=batch_size,
                                       num_train_epochs=num_epochs,
                                       learning_rate=lr,
                                       bf16=True,
