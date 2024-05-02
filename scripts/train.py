@@ -31,6 +31,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
         with tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', unit='b', ascii=True, ncols=150) as pbar:
             for batch in train_loader:
                 batch = {k: v.to(device) if k != 'end_loc' else v for k, v in batch.items()}
+                end_loc = batch['end_loc']
 
                 output = model(input_ids=batch['input_ids'],
                                attention_mask=batch['attention_mask'],
@@ -59,8 +60,11 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 pbar.update(1)
                 step += 1
 
+                del output, loss, batch
+                torch.cuda.empty_cache()
+
         f1_score = f1.compute(predictions=preds, references=labels, average='macro')['f1']
-        ppl = torch.exp(torch.stack(nlls).sum() / batch['end_loc'])
+        ppl = torch.exp(torch.stack(nlls).sum() / end_loc)
 
         avg_loss = total_loss / len(train_loader)
         train_loss_arr.append(avg_loss)
