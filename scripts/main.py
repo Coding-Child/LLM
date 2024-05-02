@@ -76,32 +76,7 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset("json", data_files=files)
-
-    processed_dataset = {
-        'train': [],
-        'validation': [],
-        'test': []
-    }
-
-    for split in ['train', 'validation', 'test']:
-        for data_point in dataset[split]:
-            processed_data = preprocess_data(data_point, tokenizer)
-
-            processed_data = {k: torch.tensor(v) for k, v in processed_data.items()}
-            processed_dataset[split].append(processed_data)
-
-    train_list = processed_dataset['train']
-    validation_list = processed_dataset['validation']
-    test_list = processed_dataset['test']
-
-    train_dataset = list_to_dataset(train_list)
-    validation_dataset = list_to_dataset(validation_list)
-    test_dataset = list_to_dataset(test_list)
-
-    dataset = DatasetDict({'train': train_dataset,
-                           'validation': validation_dataset,
-                           'test': test_dataset
-                           })
+    dataset = dataset.map(preprocess_data, fn_kwargs={'tokenizer': tokenizer}, remove_columns=['description', 'utterances'])
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
