@@ -30,7 +30,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
             for batch in train_loader:
                 batch = {k: v.to(device) for k, v in batch.items()}
 
-                output = model(batch)
+                output = model(**batch)
 
                 loss = output.loss
                 total_loss += loss.item()
