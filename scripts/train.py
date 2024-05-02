@@ -1,11 +1,9 @@
 import torch
-import torch.nn.functional as F
 
 from evaluate import load
 from scripts.eval import evaluation
 
 import wandb
-import numpy as np
 from tqdm import tqdm
 
 
@@ -31,11 +29,8 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
         with tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', unit='b', ascii=True, ncols=150) as pbar:
             for batch in train_loader:
                 batch = {k: v.to(device) for k, v in batch.items()}
-                end_loc = batch['end_loc']
 
-                output = model(input_ids=batch['input_ids'],
-                               attention_mask=batch['attention_mask'],
-                               labels=batch['labels'])
+                output = model(batch)
 
                 loss = output.loss
                 total_loss += loss.item()
@@ -50,7 +45,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 wandb.log({"step_train_loss": loss.item(), "global_step": step})
 
                 # TODO: Implement perplexity calculation
-                nlls.append(loss)
+                nlls.append(loss.item())
 
                 # TODO: Implement Macro F1-score calculation
                 output_logits = output.logits.argmax(-1).detach().cpu()
@@ -72,7 +67,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 torch.cuda.empty_cache()
 
         f1_score = f1.compute(predictions=preds, references=labels, average='macro')['f1']
-        ppl = torch.exp(torch.stack(nlls).sum() / end_loc)
+        ppl = torch.exp(torch.stack(nlls).mean())
 
         avg_loss = total_loss / len(train_loader)
         train_loss_arr.append(avg_loss)
