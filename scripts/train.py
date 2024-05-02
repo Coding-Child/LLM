@@ -24,17 +24,18 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
     model.train()
     for epoch in range(num_epochs):
         total_loss = 0
-        total_log_prob = torch.tensor(0.0, device=device)
-        total_tokens = 0
-        all_preds = list()
-        all_labels = list()
+        preds = list()
+        labels = list()
+        nlls = list()
 
         with tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', unit='b', ascii=True, ncols=150) as pbar:
             for batch in train_loader:
-                batch = {k: v.to(device) for k, v in batch.items()}
-                output = model(**batch)
+                batch = {k: v.to(device) if k != 'end_loc' else v for k, v in batch.items()}
 
-                logit = output.logits
+                output = model(input_ids=batch['input_ids'],
+                               attention_mask=batch['attention_mask'],
+                               labels=batch['labels'])
+
                 loss = output.loss
                 total_loss += loss.item()
 
@@ -48,26 +49,18 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 wandb.log({"step_train_loss": loss.item(), "global_step": step})
 
                 # TODO: Implement perplexity calculation
-                shifted_logit = logit[..., :-1, :].contiguous()
-                shifted_labels = batch['input_ids'][..., 1:].contiguous()
-
-                log_probs = F.log_softmax(shifted_logit, dim=-1)
-                label_log_probs = log_probs.gather(dim=-1, index=shifted_labels.unsqueeze(-1)).squeeze(-1)
-
-                total_log_prob += label_log_probs.sum()
-                total_tokens += shifted_labels.numel()
+                nlls.append(loss)
 
                 # TODO: Implement Macro F1-score calculation
-                pred = output.logits.argmax(-1).detach().cpu().numpy()
-                all_preds.append(pred)
-                all_labels.append(shifted_labels.detach().cpu().numpy())
+                preds += list(output.logits.argmax(-1))
+                labels += list(batch['labels'].detach().cpu().numpy())
 
                 pbar.set_postfix_str(f'loss: {loss.item():.4f}')
                 pbar.update(1)
                 step += 1
 
-        f1_score = f1.compute(predictions=np.concatenate(all_preds), references=np.concatenate(all_labels), average='macro')['f1']
-        ppl = torch.exp(-total_log_prob / total_tokens)
+        f1_score = f1.compute(predictions=preds, references=labels, average='macro')['f1']
+        ppl = torch.exp(torch.stack(nlls).sum() / batch['end_loc'])
 
         avg_loss = total_loss / len(train_loader)
         train_loss_arr.append(avg_loss)
