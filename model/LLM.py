@@ -27,10 +27,7 @@ class LLM(nn.Module):
         llm = prepare_model_for_kbit_training(llm)
 
         peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM,
-                                 inference_mode=False,
                                  r=r,
-                                 target_modules=['q_proj', 'k_proj', 'v_proj', 'o_proj',
-                                                 'gate_proj', 'down_proj', 'up_proj', 'lm_head'],
                                  lora_alpha=lora_alpha,
                                  lora_dropout=lora_dropout,
                                  )
