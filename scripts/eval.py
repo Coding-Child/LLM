@@ -31,8 +31,16 @@ def evaluation(model, device, val_loader):
                 nlls.append(loss)
 
                 # TODO: Implement Macro F1-score calculation
-                preds += list(output.logits.argmax(-1))
-                labels += list(batch['labels'].detach().cpu().numpy())
+                output_logits = output.logits.argmax(-1).detach().cpu()
+
+                batch_labels = batch['labels'].detach().cpu()
+
+                valid_indices = batch_labels != -100
+                filtered_predictions = output_logits[valid_indices]
+                filtered_labels = batch_labels[valid_indices]
+
+                preds += list(filtered_predictions.numpy())
+                labels += list(filtered_labels.numpy())
 
                 pbar.set_postfix_str(f'loss: {loss.item():.4f}')
                 pbar.update(1)
