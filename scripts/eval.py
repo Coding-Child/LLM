@@ -18,11 +18,8 @@ def evaluation(model, device, val_loader):
         with torch.no_grad():
             for batch in val_loader:
                 batch = {k: v.to(device) for k, v in batch.items()}
-                end_loc = batch['end_loc']
 
-                output = model(input_ids=batch['input_ids'],
-                               attention_mask=batch['attention_mask'],
-                               labels=batch['labels'])
+                output = model(batch)
 
                 loss = output.loss
                 total_loss += loss.item()
@@ -49,7 +46,7 @@ def evaluation(model, device, val_loader):
                 torch.cuda.empty_cache()
 
     f1_score = f1.compute(predictions=preds, references=labels, average='macro')['f1']
-    ppl = torch.exp(torch.stack(nlls).sum() / end_loc)
+    ppl = torch.exp(torch.stack(nlls).mean())
     avg_loss = total_loss / len(val_loader)
 
     return avg_loss, ppl, f1_score
