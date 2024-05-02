@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling, Trainer, TrainingArguments
-from datasets import load_dataset, Dataset, DatasetDict
+from datasets import load_dataset
 
 import os
 import random
@@ -26,10 +26,6 @@ def compute_metrics(eval_pred):
     perplexity = torch.exp(torch.tensor(loss.mean())).item()
 
     return {'perplexity': perplexity}
-
-
-def list_to_dataset(data_list):
-    return Dataset.from_dict({key: [dic[key] for dic in data_list] for key in data_list[0]})
 
 
 def seed_everything(seed):
