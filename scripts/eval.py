@@ -19,7 +19,7 @@ def evaluation(model, device, val_loader):
             for batch in val_loader:
                 batch = {k: v.to(device) for k, v in batch.items()}
 
-                output = model(batch)
+                output = model(**batch)
 
                 loss = output.loss
                 total_loss += loss.item()
