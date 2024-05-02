@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('-sp', '--save_path', type=str, default='checkpoints')
     parser.add_argument('-r', '--r', type=int, default=16)
     parser.add_argument('-ld', '--lora_dropout', type=float, default=0.05)
-    parser.add_argument('-la', '--lora_alpha', type=float, default=8)
+    parser.add_argument('-la', '--lora_alpha', type=float, default=32)
     parser.add_argument('--seed', type=int, default=42)
 
     args = parser.parse_args()
