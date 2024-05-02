@@ -11,10 +11,9 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
 from transformers import get_linear_schedule_with_warmup
-from datasets import load_dataset
 
 from model.LLM import LLM
-from Dataset.MedDialogueDataset import preprocess_data
+from Dataset.MedDialogueDataset import MedDialogueDataset
 from scripts.train import train
 from scripts.eval import test
 
@@ -66,34 +65,34 @@ def main(args):
 
         tokenizer.save_pretrained(model_name)
 
-    files = {'train': train_path, 'validation': val_path, 'test': test_path}
-    dataset = load_dataset("json", data_files=files)
-    dataset = dataset.map(preprocess_data, fn_kwargs={'tokenizer': tokenizer}, remove_columns=['description', 'utterances'])
+    train_data = MedDialogueDataset(tokenizer=tokenizer, dataset=train_path)
+    val_data = MedDialogueDataset(tokenizer=tokenizer, dataset=val_path)
+    test_data = MedDialogueDataset(tokenizer=tokenizer, dataset=test_path)
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
-    train_loader = DataLoader(dataset['train'],
+    train_loader = DataLoader(train_data,
                               batch_size=batch_size,
                               shuffle=True,
                               collate_fn=data_collator,
                               num_workers=4,
                               pin_memory=True)
-    val_loader = DataLoader(dataset['validation'],
+    val_loader = DataLoader(val_data,
                             batch_size=batch_size,
                             shuffle=False,
                             collate_fn=data_collator,
                             num_workers=4,
                             pin_memory=True)
-    test_loader = DataLoader(dataset['test'],
+    test_loader = DataLoader(test_data,
                              batch_size=batch_size,
                              shuffle=False,
                              collate_fn=data_collator,
                              num_workers=4,
                              pin_memory=True)
 
-    print("Training set size:", len(dataset['train']))
-    print("Validation set size:", len(dataset['validation']))
-    print("Test set size:", len(dataset['test']))
+    print("Training set size:", len(train_data))
+    print("Validation set size:", len(val_data))
+    print("Test set size:", len(test_data))
 
     warmup_step = (len(train_loader) * num_epochs) * 0.04
     total_step = len(train_loader) * num_epochs
