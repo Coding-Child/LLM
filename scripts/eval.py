@@ -17,7 +17,7 @@ def evaluation(model, device, val_loader):
     with tqdm(val_loader, desc='Validation', unit='b', ascii=True, ncols=150) as pbar:
         with torch.no_grad():
             for batch in val_loader:
-                batch = {k: v.to(device) if k != 'end_loc' else v for k, v in batch.items()}
+                batch = {k: v.to(device) for k, v in batch.items()}
                 end_loc = batch['end_loc']
 
                 output = model(input_ids=batch['input_ids'],
