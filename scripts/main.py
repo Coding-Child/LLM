@@ -113,6 +113,6 @@ def main(args):
     plt.plot(train_loss_arr, label='train loss')
     plt.plot(val_loss_arr, label='validation loss')
     plt.legend()
-    plt.show()
+    plt.savefig(f'{save_path}/loss_plot.png')
 
     test(model, device, test_loader, save_path)
