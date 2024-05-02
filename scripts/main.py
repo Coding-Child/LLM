@@ -1,31 +1,25 @@
-import torch
-import torch.nn as nn
-from transformers import AutoTokenizer
-from transformers import DataCollatorForLanguageModeling, Trainer, TrainingArguments
-from datasets import load_dataset
-
 import os
 import random
 import numpy as np
+import matplotlib.pyplot as plt
+
+import torch
+import torch.nn as nn
+import torch.optim as opt
+from torch.utils.data import DataLoader
+
+from transformers import AutoTokenizer
+from transformers import DataCollatorForLanguageModeling
+from transformers import get_linear_schedule_with_warmup
+from datasets import load_dataset
 
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import preprocess_data
+from scripts.train import train
+from scripts.eval import test
 
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
-
-
-def compute_metrics(eval_pred):
-    logits, labels = eval_pred
-    shift_logits = logits[..., :-1, :].contiguous()
-    shift_labels = labels[..., 1:].contiguous()
-
-    loss_fct = nn.CrossEntropyLoss(reduction='none')
-    loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-
-    perplexity = torch.exp(torch.tensor(loss.mean())).item()
-
-    return {'perplexity': perplexity}
 
 
 def seed_everything(seed):
@@ -55,6 +49,7 @@ def main(args):
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     model = LLM(r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, model_name=model_name)
+    model.llm.print_trainable_parameters()
 
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model, device_ids=[0, 1])
@@ -77,41 +72,47 @@ def main(args):
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
+    train_loader = DataLoader(dataset['train'],
+                              batch_size=batch_size,
+                              shuffle=True,
+                              collate_fn=data_collator,
+                              num_workers=4,
+                              pin_memory=True)
+    val_loader = DataLoader(dataset['validation'],
+                            batch_size=batch_size,
+                            shuffle=False,
+                            collate_fn=data_collator,
+                            num_workers=4,
+                            pin_memory=True)
+    test_loader = DataLoader(dataset['test'],
+                             batch_size=batch_size,
+                             shuffle=False,
+                             collate_fn=data_collator,
+                             num_workers=4,
+                             pin_memory=True)
+
     print("Training set size:", len(dataset['train']))
     print("Validation set size:", len(dataset['validation']))
     print("Test set size:", len(dataset['test']))
 
-    training_args = TrainingArguments(per_device_train_batch_size=batch_size,
-                                      per_device_eval_batch_size=batch_size,
-                                      num_train_epochs=num_epochs,
-                                      learning_rate=lr,
-                                      bf16=True,
-                                      save_total_limit=5,
-                                      logging_steps=10,
-                                      output_dir=save_path,
-                                      logging_dir='./logs',
-                                      save_strategy='epoch',
-                                      evaluation_strategy='epoch',
-                                      remove_unused_columns=False,
-                                      gradient_accumulation_steps=4,
-                                      label_names=['labels'],
-                                      load_best_model_at_end=True,
-                                      metric_for_best_model='perplexity',
-                                      greater_is_better=False,
-                                      report_to="wandb"
-                                      )
+    warmup_step = (len(train_loader) * num_epochs) * 0.04
+    total_step = len(train_loader) * num_epochs
 
-    trainer = Trainer(model=model,
-                      args=training_args,
-                      train_dataset=dataset['train'].shuffle(seed=args.seed),
-                      eval_dataset=dataset['validation'],
-                      tokenizer=tokenizer,
-                      compute_metrics=compute_metrics,
-                      data_collator=data_collator
-                      )
-    model.llm.config.use_cache = False
-    trainer.train()
-    model.save_pretrained(save_path)
+    optimizer = opt.AdamW(model.parameters(), lr=lr)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_step, num_training_steps=total_step)
 
-    result = trainer.evaluate(dataset['test'])
-    print(result)
+    train_loss_arr, val_loss_arr = train(model=model,
+                                         device=device,
+                                         train_loader=train_loader,
+                                         val_loader=val_loader,
+                                         optimizer=optimizer,
+                                         scheduler=scheduler,
+                                         num_epochs=num_epochs,
+                                         save_path=save_path)
+
+    plt.plot(train_loss_arr, label='train loss')
+    plt.plot(val_loss_arr, label='validation loss')
+    plt.legend()
+    plt.show()
+
+    test(model, device, test_loader, save_path)
