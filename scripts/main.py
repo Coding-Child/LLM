@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling, Trainer, TrainingArguments
-from datasets import load_dataset, load_metric
+from datasets import load_dataset, Dataset, DatasetDict
 
 import os
 import random
@@ -26,6 +26,10 @@ def compute_metrics(eval_pred):
     perplexity = torch.exp(torch.tensor(loss.mean())).item()
 
     return {'perplexity': perplexity}
+
+
+def list_to_dataset(data_list):
+    return Dataset.from_dict({key: [dic[key] for dic in data_list] for key in data_list[0]})
 
 
 def seed_everything(seed):
@@ -72,9 +76,32 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset("json", data_files=files)
-    dataset = dataset.map(lambda x: preprocess_data(x, tokenizer))
-    dataset = dataset.remove_columns(['description', 'utterances'])
-    dataset.set_format(type='torch', columns=['input_ids', 'labels'])
+
+    processed_dataset = {
+        'train': [],
+        'validation': [],
+        'test': []
+    }
+
+    for split in ['train', 'validation', 'test']:
+        for data_point in dataset[split]:
+            processed_data = preprocess_data(data_point, tokenizer)
+
+            processed_data = {k: torch.tensor(v) for k, v in processed_data.items()}
+            processed_dataset[split].append(processed_data)
+
+    train_list = processed_dataset['train']
+    validation_list = processed_dataset['validation']
+    test_list = processed_dataset['test']
+
+    train_dataset = list_to_dataset(train_list)
+    validation_dataset = list_to_dataset(validation_list)
+    test_dataset = list_to_dataset(test_list)
+
+    dataset = DatasetDict({'train': train_dataset,
+                           'validation': validation_dataset,
+                           'test': test_dataset
+                           })
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
