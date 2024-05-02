@@ -5,14 +5,6 @@ def preprocess_data(data_point, tokenizer):
     prompt = f'<Human>: {context}\n<Machine>: {response}'.strip()
     tokenized_full_prompt = tokenizer(prompt, padding='max_length', max_length=1024, truncation=True, return_tensors='pt')
 
-    labels = tokenized_full_prompt.input_ids.clone()
+    tokenized_full_prompt.labels = tokenized_full_prompt.input_ids.clone()
 
-    machine_token_id = 29076
-    machine_token_index = (labels == machine_token_id).nonzero(as_tuple=True)[0].item()
-    machine_end_index = machine_token_index + 2
-
-    labels[:machine_end_index] = -100
-
-    return {'input_ids': tokenized_full_prompt.input_ids,
-            'attention_mask': tokenized_full_prompt.attention_mask,
-            'labels': labels}
+    return tokenized_full_prompt
