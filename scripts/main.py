@@ -16,16 +16,16 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
-    f1_metric = load_metric('f1')
-    bleu_metric = load_metric('bleu')
-
     logits, labels = eval_pred
-    predictions = logits.argmax(-1)
+    shift_logits = logits[..., :-1, :].contiguous()
+    shift_labels = labels[..., 1:].contiguous()
 
-    bleu = bleu_metric.compute(predictions=[predictions], references=[labels])['bleu']
-    f1 = f1_metric.compute(predictions=predictions, references=labels)['f1']
+    loss_fct = nn.CrossEntropyLoss(reduction='none')
+    loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
-    return {'f1': f1, 'bleu': bleu}
+    perplexity = torch.exp(torch.tensor(loss.mean())).item()
+
+    return {'perplexity': perplexity}
 
 
 def seed_everything(seed):
@@ -73,7 +73,7 @@ def main(args):
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset("json", data_files=files)
     dataset = dataset.map(lambda x: preprocess_data(x, tokenizer))
-    dataset = dataset.remove_columns(dataset['train'].column_names)
+    dataset = dataset.remove_columns(['description', 'utterances'])
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
@@ -95,8 +95,8 @@ def main(args):
                                       gradient_accumulation_steps=4,
                                       label_names=['labels'],
                                       load_best_model_at_end=True,
-                                      metric_for_best_model='f1',
-                                      greater_is_better=True,
+                                      metric_for_best_model='perplexity',
+                                      greater_is_better=False,
                                       report_to="wandb"
                                       )
 
