@@ -3,7 +3,7 @@ def preprocess_data(data_point, tokenizer):
     response = data_point['utterances'][1].split(":")[-1]
 
     prompt = f'<Human>: {context}\n<Machine>: {response}'.strip()
-    tokenized_full_prompt = tokenizer(prompt, padding=True, truncation=True, return_tensors='pt')
+    tokenized_full_prompt = tokenizer(prompt, padding='max_length', max_length=1024, truncation=True, return_tensors='pt')
 
     labels = tokenized_full_prompt.input_ids.clone()
 
