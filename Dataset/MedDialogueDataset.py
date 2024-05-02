@@ -7,6 +7,5 @@ def preprocess_data(data_point, tokenizer):
 
     tokenized_full_prompt['input_ids'] = tokenized_full_prompt['input_ids'].flatten()
     tokenized_full_prompt['attention_mask'] = tokenized_full_prompt['attention_mask'].flatten()
-    tokenized_full_prompt['labels'] = tokenized_full_prompt['input_ids'].detach().clone()
 
     return tokenized_full_prompt
