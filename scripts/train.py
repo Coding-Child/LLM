@@ -30,7 +30,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
 
         with tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', unit='b', ascii=True, ncols=150) as pbar:
             for batch in train_loader:
-                batch = {k: v.to(device) if k != 'end_loc' else v for k, v in batch.items()}
+                batch = {k: v.to(device) for k, v in batch.items()}
                 end_loc = batch['end_loc']
 
                 output = model(input_ids=batch['input_ids'],
