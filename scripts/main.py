@@ -110,8 +110,8 @@ def main(args):
                                          num_epochs=num_epochs,
                                          save_path=save_path)
 
-    plt.plot(train_loss_arr, label='train loss')
-    plt.plot(val_loss_arr, label='validation loss')
+    plt.plot(train_loss_arr, label='train loss', marker='o', color='red')
+    plt.plot(val_loss_arr, label='validation loss', marker='o', color='blue')
     plt.legend()
     plt.savefig(f'{save_path}/loss_plot.png')
 
