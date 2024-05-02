@@ -74,6 +74,7 @@ def main(args):
     dataset = load_dataset("json", data_files=files)
     dataset = dataset.map(lambda x: preprocess_data(x, tokenizer))
     dataset = dataset.remove_columns(['description', 'utterances'])
+    dataset.set_format(type='torch', columns=['input_ids', 'labels'])
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
