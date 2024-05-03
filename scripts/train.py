@@ -7,7 +7,7 @@ import wandb
 from tqdm import tqdm
 
 
-def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epochs, save_path):
+def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epochs, accumulation_step, save_path):
     wandb.init(config={"learning_rate": scheduler.get_last_lr()[0],
                        "epochs": num_epochs,
                        "batch_size": train_loader.batch_size
@@ -27,17 +27,20 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
         nlls = list()
 
         with tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', unit='b', ascii=True, ncols=150) as pbar:
-            for batch in train_loader:
+            for i, batch in enumerate(train_loader):
                 batch = {k: v.to(device) for k, v in batch.items()}
 
+                optimizer.zero_grad()
                 output = model(**batch)
 
                 loss = output.loss
+                loss = loss / accumulation_step
                 total_loss += loss.item()
 
-                optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                if (i + 1) % accumulation_step == 0:
+                    optimizer.step()
+                    model.zero_grad()
 
                 if scheduler is not None:
                     scheduler.step()
@@ -61,9 +64,9 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
 
                 pbar.set_postfix_str(f'loss: {loss.item():.4f}')
                 pbar.update(1)
-                step += 1
+                step += (i + 1)
 
-                del output, loss, output_logits, batch_labels, valid_indices, filtered_predictions, filtered_labels
+                del output, loss, batch, output_logits, batch_labels, valid_indices, filtered_predictions, filtered_labels
                 torch.cuda.empty_cache()
 
         f1_score = f1.compute(predictions=preds, references=labels, average='macro')['f1']
