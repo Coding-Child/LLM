@@ -69,46 +69,42 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset('json', data_files=files)
-    dataset = dataset.map(generate_and_tokenize_prompt, fn_kwargs={'tokenizer': tokenizer})
-    
-    train_data = dataset['train'].shuffle(seed=args.seed)
-    val_data = dataset['validation']
-    test_data = dataset['test']
-    
-    print('Train data size:', len(train_data))
-    print('Validation data size:', len(val_data))
-    print('Test data size:', len(test_data))
+    dataset = dataset.map(generate_and_tokenize_prompt, fn_kwargs={'tokenizer': tokenizer}, 
+                          remove_columns=['description', 'utterances'])
+
+    print('Train data size:', len(dataset['train']))
+    print('Validation data size:', len(dataset['validation']))
+    print('Test data size:', len(dataset['test']))
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
     training_args = TrainingArguments(per_device_train_batch_size=batch_size,
                                       per_device_eval_batch_size=batch_size,
-                                      evaluation_strategy='epoch',
-                                      logging_dir='./logs',
-                                      logging_steps=1000,
-                                      warmup_steps=500,
-                                      save_strategy='epoch',
-                                      save_total_limit=1,
-                                      learning_rate=lr,
                                       num_train_epochs=num_epochs,
-                                      gradient_accumulation_steps=accumulation_step,
-                                      report_to='wandb',
-                                      seed=args.seed,
+                                      learning_rate=lr,
+                                      bf16=True,
+                                      save_total_limit=4,
+                                      logging_steps=10,
+                                      output_dir=save_path,
+                                      logging_dir='./logs',
+                                      save_strategy='epoch',
+                                      evaluation_strategy='epoch',
                                       load_best_model_at_end=True,
-                                      metric_for_best_model='ppl',
-                                      greater_is_better=False,
-                                      output_dir=save_path
+                                      remove_unused_columns=False,
+                                      gradient_accumulation_steps=accumulation_step,
+                                      report_to="wandb"
                                       )
 
     trainer = Trainer(model=model,
                       args=training_args,
-                      data_collator=data_collator,
-                      train_dataset=train_data,
-                      eval_dataset=val_data,
-                      compute_metrics=compute_metrics
+                      train_dataset=dataset['train'].shuffle(seed=args.seed),
+                      eval_dataset=dataset['validation'],
+                      tokenizer=tokenizer,
+                      compute_metrics=compute_metrics,
+                      data_collator=data_collator
                       )
 
     trainer.train()
     model.llm.save_pretrained(save_path)
-    result = trainer.evaluate(test_data)
+    result = trainer.evaluate(dataset['test'])
     print(result)
