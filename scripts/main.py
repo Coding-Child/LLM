@@ -11,7 +11,7 @@ from transformers import Trainer, TrainingArguments
 from datasets import load_dataset
 
 from model.LLM import LLM
-from Dataset.MedDialogueDataset import preprocess_data
+from Dataset.MedDialogueDataset import generate_and_tokenize_prompt
 
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
@@ -69,13 +69,12 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset('json', data_files=files)
-    dataset = dataset.map(preprocess_data, fn_kwargs={'tokenizer': tokenizer},
-                          remove_columns=['description', 'utterances'])
-
-    train_data = dataset['train'].remove_columns(['labels']) if 'labels' in dataset['train'].column_names else dataset['train']
-    val_data = dataset['validation'].remove_columns(['labels']) if 'labels' in dataset['validation'].column_names else dataset['validation']
-    test_data = dataset['test'].remove_columns(['labels']) if 'labels' in dataset['test'].column_names else dataset['test']
-
+    dataset = dataset.map(generate_and_tokenize_prompt, fn_kwargs={'tokenizer': tokenizer})
+    
+    train_data = dataset['train'].shuffle(seed=args.seed)
+    val_data = dataset['validation']
+    test_data = dataset['test']
+    
     print('Train data size:', len(train_data))
     print('Validation data size:', len(val_data))
     print('Test data size:', len(test_data))
