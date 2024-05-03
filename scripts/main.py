@@ -1,9 +1,7 @@
 import os
 import random
 import numpy as np
-
 import torch
-import torch.nn as nn
 
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
