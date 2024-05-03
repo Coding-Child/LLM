@@ -37,21 +37,3 @@ class LLM(nn.Module):
 
     def forward(self, *args, **kwargs):
         return self.llm(*args, **kwargs)
-
-    def save_adapter(self, path):
-        save_path = os.path.join(path, 'lora_adapter.pt')
-        lora_parameters = {name: param for name, param in self.llm.named_parameters() if 'lora' in name}
-        torch.save(lora_parameters, save_path)
-
-    def save_full_model(self, path):
-        save_path = os.path.join(path, 'full_model.pt')
-        torch.save(self.llm.state_dict(), save_path)
-
-    def load_adapter(self, path):
-        load_path = os.path.join(path, 'lora_adapter.pt')
-        lora_params = torch.load(load_path)
-        self.llm.load_state_dict(lora_params, strict=False)
-
-    def load_full_model(self, path):
-        load_path = os.path.join(path, 'full_model.pt')
-        self.llm.load_state_dict(torch.load(load_path))
