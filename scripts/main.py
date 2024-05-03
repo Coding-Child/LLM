@@ -9,7 +9,6 @@ from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer, TrainingArguments
 from datasets import load_dataset
-from torchmetrics.text import Perplexity
 
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import generate_data
@@ -20,10 +19,16 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 def compute_metrics(eval_pred):
     pred, labels = eval_pred
-    perp = Perplexity(ignore_index=-100)
-    ppl = perp(pred, labels)
-    
-    return {'ppl': ppl}
+
+    ignore_indices = (labels == -100) | (labels == 2)
+    labels[ignore_indices] = -999
+
+    criterion = nn.CrossEntropyLoss(ignore_index=-999)
+    loss = criterion(pred.view(-1, pred.size(-1)), labels.view(-1))
+
+    ppl = torch.exp(loss).item()
+
+    return {'ppl': ppl, 'loss': loss.item()}
 
 
 def seed_everything(seed):
