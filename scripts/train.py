@@ -97,7 +97,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                    "global_step": step
                    })
 
-        del preds, labels, nlls, avg_loss, val_loss, val_ppl, val_f1, f1_score, ppl, output, loss, batch
+        del preds, labels, nlls, avg_loss, val_loss, val_ppl, val_f1, f1_score, ppl
         torch.cuda.empty_cache()
 
     model.save_adapter(save_path + '/last_model')
