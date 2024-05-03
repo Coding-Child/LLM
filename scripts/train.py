@@ -83,7 +83,8 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
         val_loss_arr.append(val_loss)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
-            model.save_pretrained(save_path + '/best_model')
+            model.save_adapter(save_path + '/best_model')
+            model.save_full_model(save_path + '/best_model')
 
             print('best model saved')
             print(f'train loss: {avg_loss:.4f}, perplexity: {ppl:.4f}, f1: {f1_score:.4f}')
@@ -96,7 +97,8 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                    "global_step": step
                    })
 
-    model.save_pretrained(save_path + '/last_model')
+    model.save_adapter(save_path + '/last_model')
+    model.save_full_model(save_path + '/last_model')
     wandb.finish()
 
     return train_loss_arr, val_loss_arr
