@@ -63,6 +63,9 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 pbar.update(1)
                 step += 1
 
+                del output, loss, output_logits, batch_labels, valid_indices, filtered_predictions, filtered_labels
+                torch.cuda.empty_cache()
+
         f1_score = f1.compute(predictions=preds, references=labels, average='macro')['f1']
         ppl = torch.exp(torch.stack(nlls).mean())
 
