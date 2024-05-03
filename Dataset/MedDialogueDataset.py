@@ -7,6 +7,8 @@ def generate_prompt(data_point):
 
 def generate_and_tokenize_prompt(data_point, tokenizer):
     full_prompt = generate_prompt(data_point)
-    tokenized_full_prompt = tokenizer(full_prompt, padding=True, truncation=True)
+    tokenized_full_prompt = tokenizer(full_prompt, padding='max_length', max_length=512, truncation=True, return_tensors='pt')
+    tokenized_full_prompt['input_ids'] = tokenized_full_prompt['input_ids'].flatten()
+    tokenized_full_prompt['attention_mask'] = tokenized_full_prompt['attention_mask'].flatten()
 
     return tokenized_full_prompt
