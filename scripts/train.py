@@ -33,8 +33,7 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 optimizer.zero_grad()
                 output = model(**batch)
 
-                loss = output.loss
-                loss = loss / accumulation_step
+                loss = output.loss / accumulation_step
                 total_loss += loss.item()
 
                 loss.backward()
@@ -45,10 +44,10 @@ def train(model, device, train_loader, val_loader, optimizer, scheduler, num_epo
                 if scheduler is not None:
                     scheduler.step()
 
-                wandb.log({"step_train_loss": loss.item(), "global_step": step})
+                wandb.log({"step_train_loss": output.loss.item(), "global_step": step})
 
                 # TODO: Implement perplexity calculation
-                nlls.append(loss)
+                nlls.append(output.loss)
 
                 # TODO: Implement Macro F1-score calculation
                 output_logits = output.logits.argmax(-1).detach().cpu()
