@@ -9,7 +9,7 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--model_name', type=str, default='save_model/Llama-2-7b-chat-hf')
     parser.add_argument('-lr', '--learning_rate', type=float, default=5e-4)
     parser.add_argument('-b', '--batch_size', type=int, default=15)
-    parser.add_argument('-a', '--accumulation_step', type=int, default=16)
+    parser.add_argument('-a', '--accumulation_step', type=int, default=4)
     parser.add_argument('-e', '--num_epochs', type=int, default=200)
     parser.add_argument('-trn', '--train_path', type=str, default='data/english-train.json')
     parser.add_argument('-val', '--val_path', type=str, default='data/english-dev.json')
