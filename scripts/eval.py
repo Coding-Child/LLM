@@ -1,7 +1,6 @@
 import torch
 
 from evaluate import load
-from peft import PeftModel
 from tqdm import tqdm
 
 
