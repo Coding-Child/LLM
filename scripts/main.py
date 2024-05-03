@@ -17,11 +17,12 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
-    preds, labels = eval_pred
+    labels = eval_pred.label_ids
+    preds = eval_pred.predictions.argmax(-1)
 
     valid_positions = (labels != -100) & (labels != 0)
 
-    valid_preds = preds[valid_positions].argmax(-1)
+    valid_preds = preds[valid_positions]
     valid_labels = labels[valid_positions]
 
     f1 = f1_score(y_true=valid_labels, y_pred=valid_preds, average='macro')
