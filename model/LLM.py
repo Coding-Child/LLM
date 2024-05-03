@@ -3,6 +3,8 @@ import torch.nn as nn
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, TaskType
 
+import os
+
 
 class LLM(nn.Module):
     def __init__(self,
@@ -37,15 +39,19 @@ class LLM(nn.Module):
         return self.llm(*args, **kwargs)
 
     def save_adapter(self, path):
+        save_path = os.path.join(path, 'lora_adapter.pt')
         lora_parameters = {name: param for name, param in self.llm.named_parameters() if 'lora' in name}
-        torch.save(lora_parameters, path + '/lora_adapter.pt')
+        torch.save(lora_parameters, save_path)
 
     def save_full_model(self, path):
-        torch.save(self.llm.state_dict(), path + '/full_model.pt')
+        save_path = os.path.join(path, 'full_model.pt')
+        torch.save(self.llm.state_dict(), save_path)
 
     def load_adapter(self, path):
-        lora_params = torch.load(path + '/lora_adapter.pt')
+        load_path = os.path.join(path, 'lora_adapter.pt')
+        lora_params = torch.load(load_path)
         self.llm.load_state_dict(lora_params, strict=False)
 
     def load_full_model(self, path):
-        self.llm.load_state_dict(torch.load(path + '/full_model.pt'))
+        load_path = os.path.join(path, 'full_model.pt')
+        self.llm.load_state_dict(torch.load(load_path))
