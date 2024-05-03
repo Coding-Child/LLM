@@ -8,23 +8,26 @@ import torch.nn as nn
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer, TrainingArguments
-from datasets import load_dataset
+from datasets import load_dataset, load_metric
 
 from model.LLM import LLM
-from Dataset.MedDialogueDataset import generate_data
+from Dataset.MedDialogueDataset import batch_generate_data
 
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
-    pred, labels = eval_pred
+    f1 = load_metric('f1')
+    preds, labels = eval_pred
 
-    criterion = nn.CrossEntropyLoss(ignore_index=-100)
-    loss = criterion(pred.view(-1, pred.size(-1)), labels.view(-1))
-    perplexity = torch.exp(torch.tensor(loss)).item()
-    
-    return {"loss": loss.item(), "ppl": perplexity}
+    valid_positions = (labels != -100) & (labels != 0)
+
+    valid_preds = preds[valid_positions].argmax(-1)
+    valid_labels = labels[valid_positions]
+    f1_score = f1.compute(predictions=valid_preds, references=valid_labels, average='macro')['f1']
+
+    return {'f1': f1_score}
 
 
 def seed_everything(seed):
@@ -58,18 +61,19 @@ def main(args):
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token = tokenizer.unk_token
     except:
         name = 'meta-llama/' + model_name.split("/")[-1]
 
         tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=name)
-        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token = tokenizer.unk_token
 
         tokenizer.save_pretrained(model_name)
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset('json', data_files=files)
-    dataset = dataset.map(generate_data, fn_kwargs={'tokenizer': tokenizer}, remove_columns=['description', 'utterances'])
+    dataset = dataset.map(batch_generate_data, fn_kwargs={'tokenizer': tokenizer},
+                          remove_columns=['description', 'utterances'], batched=True)
 
     print('Train data size:', len(dataset['train']))
     print('Validation data size:', len(dataset['validation']))
@@ -89,7 +93,7 @@ def main(args):
                                       save_strategy='epoch',
                                       evaluation_strategy='epoch',
                                       load_best_model_at_end=True,
-                                      metric_for_best_model='ppl',
+                                      metric_for_best_model='f1',
                                       greater_is_better=False,
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=accumulation_step,
