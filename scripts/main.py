@@ -9,22 +9,21 @@ from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer, TrainingArguments
 from datasets import load_dataset
+from torchmetrics.text import Perplexity
 
 from model.LLM import LLM
-from Dataset.MedDialogueDataset import generate_and_tokenize_prompt
+from Dataset.MedDialogueDataset import generate_data
 
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
-    logits, labels = eval_pred
-    criterion = nn.CrossEntropyLoss()
-
-    loss = criterion(logits.view(-1, logits.size(-1)), labels.view(-1))
-    perplexity = torch.exp(torch.tensor(loss)).item()
-
-    return {'loss': loss.item(), 'ppl': perplexity}
+    pred, labels = eval_pred
+    perp = Perplexity(ignore_index=-100)
+    ppl = perp(pred, labels)
+    
+    return {'ppl': ppl}
 
 
 def seed_everything(seed):
@@ -69,8 +68,7 @@ def main(args):
 
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset('json', data_files=files)
-    dataset = dataset.map(generate_and_tokenize_prompt, fn_kwargs={'tokenizer': tokenizer}, 
-                          remove_columns=['description', 'utterances'])
+    dataset = dataset.map(generate_data, fn_kwargs={'tokenizer': tokenizer}, remove_columns=['description', 'utterances'])
 
     print('Train data size:', len(dataset['train']))
     print('Validation data size:', len(dataset['validation']))
