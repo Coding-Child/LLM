@@ -42,12 +42,12 @@ def evaluation(model, device, val_loader):
                 pbar.set_postfix_str(f'loss: {loss.item():.4f}')
                 pbar.update(1)
 
-                del output, loss, batch
-                torch.cuda.empty_cache()
-
     f1_score = f1.compute(predictions=preds, references=labels, average='macro')['f1']
     ppl = torch.exp(torch.stack(nlls).mean())
     avg_loss = total_loss / len(val_loader)
+
+    del batch, output, loss, nlls, output_logits, batch_labels
+    torch.cuda.empty_cache()
 
     return avg_loss, ppl, f1_score
 
@@ -56,10 +56,10 @@ def test(model, device, test_loader, save_path):
     best_path = f'{save_path}/best_model'
     final_path = f'{save_path}/last_model'
 
-    model = PeftModel.from_pretrained(model, best_path)
+    model.load_adapter(best_path)
     best_loss, best_ppl, best_f1 = evaluation(model, device, test_loader)
 
-    model = PeftModel.from_pretrained(model, final_path)
+    model.load_adapter(final_path)
     final_loss, final_ppl, final_f1 = evaluation(model, device, test_loader)
 
     print(f'Best Model Loss: {best_loss:.4f}, PPL: {best_ppl:.4f}, F1: {best_f1:.4f}')
