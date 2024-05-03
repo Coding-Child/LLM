@@ -6,7 +6,8 @@ import torch
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer, TrainingArguments
-from datasets import load_dataset, load_metric
+from datasets import load_dataset
+from sklearn.metrics import f1_score
 
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import batch_generate_data
@@ -16,16 +17,16 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred):
-    f1 = load_metric('f1')
     preds, labels = eval_pred
 
     valid_positions = (labels != -100) & (labels != 0)
 
     valid_preds = preds[valid_positions].argmax(-1)
     valid_labels = labels[valid_positions]
-    f1_score = f1.compute(predictions=valid_preds, references=valid_labels, average='macro')['f1']
 
-    return {'f1': f1_score}
+    f1 = f1_score(y_true=valid_labels, y_pred=valid_preds, average='macro')
+
+    return {'f1': f1}
 
 
 def seed_everything(seed):
