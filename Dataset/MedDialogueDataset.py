@@ -18,7 +18,7 @@ class MedDialogueDataset(Dataset):
         self.labels = []
 
     def __len__(self):
-        return len(self.inputs)
+        return len(self.dataset)
 
     def __getitem__(self, idx: int):
         d = self.dataset[idx]
