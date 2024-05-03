@@ -37,6 +37,7 @@ def main(args):
     model_name = args.model_name
     lr = args.learning_rate
     batch_size = args.batch_size
+    accumulation_step = args.accumulation_step
     num_epochs = args.num_epochs
     train_path = args.train_path
     val_path = args.val_path
@@ -49,7 +50,6 @@ def main(args):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     model = LLM(r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, model_name=model_name)
     model.llm.print_trainable_parameters()
-
     torch.cuda.empty_cache()
 
     if torch.cuda.device_count() > 1:
@@ -109,6 +109,7 @@ def main(args):
                                          optimizer=optimizer,
                                          scheduler=scheduler,
                                          num_epochs=num_epochs,
+                                         accumulation_step=accumulation_step,
                                          save_path=save_path)
 
     plt.plot(train_loss_arr, label='train loss', marker='o', color='red')
