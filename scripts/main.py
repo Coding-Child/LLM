@@ -8,10 +8,10 @@ import torch.nn as nn
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer, TrainingArguments
-from evaluate import load
+from datasets import load_dataset
 
 from model.LLM import LLM
-from Dataset.MedDialogueDataset import MedDialogueDataset
+from Dataset.MedDialogueDataset import preprocess_data
 
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
@@ -67,9 +67,18 @@ def main(args):
 
         tokenizer.save_pretrained(model_name)
 
-    train_data = MedDialogueDataset(tokenizer=tokenizer, dataset=train_path)
-    val_data = MedDialogueDataset(tokenizer=tokenizer, dataset=val_path)
-    test_data = MedDialogueDataset(tokenizer=tokenizer, dataset=test_path)
+    files = {'train': train_path, 'validation': val_path, 'test': test_path}
+    dataset = load_dataset('json', data_files=files)
+    dataset = dataset.map(preprocess_data, fn_kwargs={'tokenizer': tokenizer},
+                          remove_columns=['description', 'utterances'])
+
+    train_data = dataset['train'].remove_columns(['labels']) if 'labels' in dataset['train'].column_names else dataset['train']
+    val_data = dataset['validation'].remove_columns(['labels']) if 'labels' in dataset['validation'].column_names else dataset['validation']
+    test_data = dataset['test'].remove_columns(['labels']) if 'labels' in dataset['test'].column_names else dataset['test']
+
+    print('Train data size:', len(train_data))
+    print('Validation data size:', len(val_data))
+    print('Test data size:', len(test_data))
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
@@ -78,6 +87,7 @@ def main(args):
                                       evaluation_strategy='epoch',
                                       logging_dir='./logs',
                                       logging_steps=1000,
+                                      warmup_steps=500,
                                       save_strategy='epoch',
                                       save_total_limit=1,
                                       learning_rate=lr,
@@ -90,11 +100,13 @@ def main(args):
                                       greater_is_better=False,
                                       output_dir=save_path
                                       )
+
     trainer = Trainer(model=model,
                       args=training_args,
                       data_collator=data_collator,
                       train_dataset=train_data,
-                      eval_dataset=val_data
+                      eval_dataset=val_data,
+                      compute_metrics=compute_metrics
                       )
 
     trainer.train()
