@@ -20,15 +20,11 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 def compute_metrics(eval_pred):
     pred, labels = eval_pred
 
-    ignore_indices = (labels == -100) | (labels == 2)
-    labels[ignore_indices] = -999
-
-    criterion = nn.CrossEntropyLoss(ignore_index=-999)
+    criterion = nn.CrossEntropyLoss(ignore_index=-100)
     loss = criterion(pred.view(-1, pred.size(-1)), labels.view(-1))
-
-    ppl = torch.exp(loss).item()
-
-    return {'ppl': ppl, 'loss': loss.item()}
+    perplexity = torch.exp(torch.tensor(loss)).item()
+    
+    return {"loss": loss.item(), "ppl": perplexity}
 
 
 def seed_everything(seed):
