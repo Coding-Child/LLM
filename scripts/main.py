@@ -137,7 +137,7 @@ def main(args):
     model.config.use_cache = False
     trainer.train()
     loss = tester.evaluate()['eval_loss']
-    print('test_perplexity:', torch.exp(torch.tensor(loss)).item())
+    print('Test Perplexity:', torch.exp(torch.tensor(loss)).item())
 
     # save the adapter weight
     model.save_pretrained(save_name)
