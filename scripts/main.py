@@ -11,7 +11,6 @@ from transformers import AdamW, get_cosine_schedule_with_warmup
 
 from peft import PeftModel
 from datasets import load_dataset
-# TODO: You need to install trl (pip install trl) use the following import
 from trl import SFTTrainer
 
 from model.LLM import load_llm
