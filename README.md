@@ -7,6 +7,7 @@ Also, because the code uses wandb to track your learning progress, you will need
 transformers == 4.39.3
 pytorch == 2.3.0+cu118
 peft == 0.10.0
+trl == 0.8.6
 bitsandbytes == 0.43.1
 wandb == 0.16.6
 ```
