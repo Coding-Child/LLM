@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
 
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig
@@ -23,45 +22,40 @@ def find_all_linear_names(model):
     return list(lora_module_names)
 
 
-class LLM(nn.Module):
-    def __init__(self,
-                 r: int = 8,
-                 lora_alpha: int = 32,
-                 lora_dropout: float = 0.1,
-                 model_name: str = 'meta-llama/Llama-2-7b-chat-hf'):
-        super(LLM, self).__init__()
+def load_llm(r: int = 8,
+             lora_alpha: int = 32,
+             lora_dropout: float = 0.1,
+             model_name: str = 'meta-llama/Llama-2-7b-chat-hf'):
+    fsdp_plugin = FullyShardedDataParallelPlugin(state_dict_config=FullStateDictConfig(offload_to_cpu=True,
+                                                                                       rank0_only=False),
+                                                 optim_state_dict_config=FullOptimStateDictConfig(
+                                                     offload_to_cpu=True,
+                                                     rank0_only=False),
+                                                 )
+    accelerator = Accelerator(fsdp_plugin=fsdp_plugin)
 
-        fsdp_plugin = FullyShardedDataParallelPlugin(state_dict_config=FullStateDictConfig(offload_to_cpu=True,
-                                                                                           rank0_only=False),
-                                                     optim_state_dict_config=FullOptimStateDictConfig(
-                                                         offload_to_cpu=True,
-                                                         rank0_only=False),
-                                                     )
-        accelerator = Accelerator(fsdp_plugin=fsdp_plugin)
+    bnb_config = BitsAndBytesConfig(load_in_4bit=True,
+                                    bnb_4bit_use_double_quant=True,
+                                    bnb_4bit_quant_type="nf4",
+                                    bnb_4bit_compute_dtype=torch.bfloat16
+                                    )
 
-        bnb_config = BitsAndBytesConfig(load_in_4bit=True,
-                                        bnb_4bit_use_double_quant=True,
-                                        bnb_4bit_quant_type="nf4",
-                                        bnb_4bit_compute_dtype=torch.bfloat16
-                                        )
+    llm = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=model_name,
+                                               device_map='auto',
+                                               quantization_config=bnb_config,
+                                               )
+    llm.gradient_checkpointing_enable()
 
-        llm = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=model_name,
-                                                   device_map='auto',
-                                                   quantization_config=bnb_config,
-                                                   )
-        llm.gradient_checkpointing_enable()
+    lora_config = LoraConfig(task_type=TaskType.CAUSAL_LM,
+                             r=r,
+                             lora_alpha=lora_alpha,
+                             lora_dropout=lora_dropout,
+                             bias="none",
+                             target_modules=find_all_linear_names(llm)
+                             )
 
-        self.lora_config = LoraConfig(task_type=TaskType.CAUSAL_LM,
-                                      r=r,
-                                      lora_alpha=lora_alpha,
-                                      lora_dropout=lora_dropout,
-                                      bias="none",
-                                      target_modules=find_all_linear_names(llm)
-                                      )
+    llm.enable_input_require_grads()
+    llm = get_peft_model(llm, lora_config)
+    llm = accelerator.prepare_model(llm)
 
-        llm.enable_input_require_grads()
-        llm = get_peft_model(llm, self.lora_config)
-        self.llm = accelerator.prepare_model(llm)
-
-    def forward(self, *args, **kwargs):
-        return self.llm(*args, **kwargs)
+    return llm, lora_config
