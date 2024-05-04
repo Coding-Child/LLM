@@ -11,8 +11,6 @@ from datasets import load_dataset
 
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import batch_generate_data
-
-
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
