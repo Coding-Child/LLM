@@ -3,7 +3,6 @@ import random
 import numpy as np
 
 import torch
-import torch.nn as nn
 
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
@@ -13,29 +12,9 @@ from datasets import load_dataset
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import batch_generate_data
 
+
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
-
-
-def compute_metrics(eval_pred):
-    labels = eval_pred.label_ids
-    preds = eval_pred.predictions
-
-    valid_positions = (labels != -100) & (labels != 0)
-
-    preds = preds[valid_positions]
-    labels = labels[valid_positions]
-
-    preds = torch.tensor(preds)
-    labels = torch.tensor(labels)
-    preds = preds.view(-1, preds.size(-1))
-    labels = labels.view(-1).long()
-
-    criterion = nn.CrossEntropyLoss()
-    loss = criterion(preds, labels)
-    ppl = torch.exp(loss).item()
-
-    return {'loss': loss.item(), 'ppl': ppl}
 
 
 def seed_everything(seed):
@@ -100,9 +79,7 @@ def main(args):
                                       logging_dir='./logs',
                                       save_strategy='epoch',
                                       evaluation_strategy='epoch',
-                                      load_best_model_at_end=True,
-                                      metric_for_best_model='ppl',
-                                      greater_is_better=False,
+                                      do_eval=True,
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=accumulation_step,
                                       report_to="wandb"
@@ -113,7 +90,6 @@ def main(args):
                       train_dataset=dataset['train'].shuffle(seed=args.seed),
                       eval_dataset=dataset['validation'],
                       tokenizer=tokenizer,
-                      compute_metrics=compute_metrics,
                       data_collator=data_collator
                       )
 
