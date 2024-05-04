@@ -1,13 +1,14 @@
 import os
 import random
 import numpy as np
+
 import torch
+import torch.nn as nn
 
 from transformers import AutoTokenizer
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer, TrainingArguments
 from datasets import load_dataset
-from sklearn.metrics import f1_score
 
 from model.LLM import LLM
 from Dataset.MedDialogueDataset import batch_generate_data
@@ -18,16 +19,23 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 def compute_metrics(eval_pred):
     labels = eval_pred.label_ids
-    preds = eval_pred.predictions.argmax(-1)
+    preds = eval_pred.predictions
 
     valid_positions = (labels != -100) & (labels != 0)
 
-    valid_preds = preds[valid_positions]
-    valid_labels = labels[valid_positions]
+    preds = preds[valid_positions]
+    labels = labels[valid_positions]
 
-    f1 = f1_score(y_true=valid_labels, y_pred=valid_preds, average='macro')
+    preds = torch.tensor(preds)
+    labels = torch.tensor(labels)
+    preds = preds.view(-1, preds.size(-1))
+    labels = labels.view(-1).long()
 
-    return {'f1': f1}
+    criterion = nn.CrossEntropyLoss()
+    loss = criterion(preds, labels)
+    ppl = torch.exp(loss).item()
+
+    return {'loss': loss.item(), 'ppl': ppl}
 
 
 def seed_everything(seed):
@@ -93,8 +101,8 @@ def main(args):
                                       save_strategy='epoch',
                                       evaluation_strategy='epoch',
                                       load_best_model_at_end=True,
-                                      metric_for_best_model='f1',
-                                      greater_is_better=True,
+                                      metric_for_best_model='ppl',
+                                      greater_is_better=False,
                                       remove_unused_columns=False,
                                       gradient_accumulation_steps=accumulation_step,
                                       report_to="wandb"
