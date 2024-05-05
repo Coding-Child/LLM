@@ -4,10 +4,11 @@ import numpy as np
 from datetime import datetime
 
 import torch
+import torch.optim.lr_scheduler as sch
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import DataCollatorForLanguageModeling, EarlyStoppingCallback, TrainingArguments
-from transformers import AdamW, get_cosine_schedule_with_warmup
+from transformers import AdamW
 
 from peft import PeftModel
 from datasets import load_dataset
@@ -87,11 +88,7 @@ def main(args):
     # Early stopping callback and optimizer with scheduler
     early_stopping = EarlyStoppingCallback(early_stopping_patience=num_epochs * 0.1)
     optimizer = AdamW(model.parameters(), lr=lr, eps=1e-5, weight_decay=0.1, betas=(0.9, 0.95))
-    num_training_steps = num_epochs * (len(dataset['train']) // (batch_size * accumulation_step))
-
-    scheduler = get_cosine_schedule_with_warmup(optimizer,
-                                                num_warmup_steps=warmup_step,
-                                                num_training_steps=num_training_steps)
+    scheduler = sch.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.8 ** (epoch // 2))
 
     # Training the model
     training_args = TrainingArguments(per_device_train_batch_size=batch_size,
@@ -121,9 +118,9 @@ def main(args):
                          eval_dataset=dataset['validation'],
                          dataset_text_field='prompt',
                          data_collator=data_collator,
-                         optimizers=(optimizer, scheduler),
                          peft_config=lora_config,
-                         callbacks=[early_stopping]
+                         callbacks=[early_stopping],
+                         optimizers=(optimizer, scheduler)
                          )
 
     tester = SFTTrainer(model=model,
