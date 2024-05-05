@@ -4,11 +4,10 @@ import numpy as np
 from datetime import datetime
 
 import torch
-import torch.optim.lr_scheduler as sch
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import DataCollatorForLanguageModeling, EarlyStoppingCallback, TrainingArguments
-from transformers import AdamW
+from transformers import AdamW, get_scheduler
 
 from peft import PeftModel
 from datasets import load_dataset
@@ -86,9 +85,14 @@ def main(args):
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
 
     # Early stopping callback and optimizer with scheduler
+    num_training_steps = num_epochs * (len(dataset['train']) // (batch_size * accumulation_step))
     early_stopping = EarlyStoppingCallback(early_stopping_patience=num_epochs * 0.1)
     optimizer = AdamW(model.parameters(), lr=lr, eps=1e-5, weight_decay=0.1, betas=(0.9, 0.95))
-    scheduler = sch.LambdaLR(optimizer, lr_lambda=lambda epoch: 0.8 ** (epoch // 2))
+    scheduler = get_scheduler('linear',
+                              optimizer=optimizer,
+                              num_warmup_steps=warmup_step,
+                              num_training_steps=num_training_steps,
+                              )
 
     # Training the model
     training_args = TrainingArguments(per_device_train_batch_size=batch_size,
