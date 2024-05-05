@@ -43,7 +43,7 @@ def main(args):
     val_path = args.val_path
     test_path = args.test_path
     save_name = args.save_path + '/' + model_name.split("/")[-1]
-    merged_model_name = 'merged_model' + '/' + model_name.split("/")[-1]
+    merged_model_name = 'full_model' + '/' + model_name.split("/")[-1]
     r = args.r
     lora_dropout = args.lora_dropout
     lora_alpha = args.lora_alpha
@@ -131,7 +131,7 @@ def main(args):
                         dataset_text_field='prompt',
                         eval_dataset=dataset['test'],
                         data_collator=data_collator,
-                        peft_config=model.lora_config,
+                        peft_config=lora_config,
                         )
 
     model.config.use_cache = False
