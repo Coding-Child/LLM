@@ -23,9 +23,9 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
 
 def compute_metrics(eval_pred, tokenizer):
-    bleu = load('bleu')
-    meteor = load('meteor')
-    rouge = load('rouge')
+    bleu = load_metric('bleu')
+    meteor = load_metric('meteor')
+    rouge = load_metric('rouge')
     perplexity = Perplexity(ignore_index=-100)
 
     logits, labels = eval_pred
@@ -35,22 +35,25 @@ def compute_metrics(eval_pred, tokenizer):
     valid_predictions = predictions[valid_ids]
     valid_labels = labels[valid_ids]
 
-    predictions = [tokenizer.decode(ids, skip_special_tokens=True) for ids in valid_predictions]
-    references = [[tokenizer.decode(ids, skip_special_tokens=True)] for ids in valid_labels]
+    predictions = [tokenizer.tokenize(tokenizer.decode(ids, skip_special_tokens=True)) for ids in valid_predictions]
+    references = [[tokenizer.tokenize(tokenizer.decode([label], skip_special_tokens=True))] for label in valid_labels]
+
     perplexity.update(torch.tensor(logits), torch.tensor(labels))
 
-    bleu_score = bleu.compute(predictions=predictions, references=references)['bleu']
+    bleu2_score = bleu.compute(predictions=predictions, references=references, max_order=2)['bleu']
+    bleu4_score = bleu.compute(predictions=predictions, references=references, max_order=4)['bleu']
     meteor_score = meteor.compute(predictions=predictions, references=references)['meteor']
     rouge = rouge.compute(predictions=predictions, references=references)
     f1 = f1_score(valid_labels, valid_predictions, average='macro')
     ppl = perplexity.compute().item()
 
-    return {'bleu': bleu_score,
+    return {'bleu2': bleu2_score,
+            'bleu4': bleu4_score,
             'meteor': meteor_score,
-            'rouge1': rouge['rouge1'],
-            'rouge2': rouge['rouge2'],
-            'rougeL': rouge['rougeL'],
-            'rougeLsum': rouge['rougeLsum'],
+            'rouge1': rouge['rouge1'].mid.fmeasure,
+            'rouge2': rouge['rouge2'].mid.fmeasure,
+            'rougeL': rouge['rougeL'].mid.fmeasure,
+            'rougeLsum': rouge['rougeLsum'].mid.fmeasure,
             'f1': f1,
             'perplexity': ppl
             }
