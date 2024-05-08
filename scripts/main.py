@@ -1,22 +1,58 @@
 import os
 import random
 import numpy as np
+from sklearn.metrics import f1_score
 from datetime import datetime
 
 import torch
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import DataCollatorForLanguageModeling, EarlyStoppingCallback, TrainingArguments
-from transformers import AdamW, get_scheduler
+from transformers import EarlyStoppingCallback, TrainingArguments
+from transformers import AdamW, get_cosine_schedule_with_warmup
 
 from peft import PeftModel
 from datasets import load_dataset
-from trl import SFTTrainer
+from evaluate import load
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
 from model.LLM import load_llm
-from Dataset.MedDialogueDataset import generate_prompt
+from Dataset.MedDialogueDataset import generate_prompt_batched
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
+
+
+def compute_metrics(eval_pred, tokenizer):
+    bleu = load('bleu')
+    meteor = load('meteor')
+    rouge = load('rouge')
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=-100)
+
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    loss = criterion(torch.tensor(logits).view(-1, logits.shape[-1]), torch.tensor(labels).view(-1).long())
+
+    valid_ids = labels != -100
+    valid_predictions = predictions[valid_ids]
+    valid_labels = labels[valid_ids]
+
+    predictions = [tokenizer.decode(ids, skip_special_tokens=True) for ids in valid_predictions]
+    references = [[tokenizer.decode(ids, skip_special_tokens=True)] for ids in valid_labels]
+
+    bleu_score = bleu.compute(predictions=predictions, references=references)['bleu']
+    meteor_score = meteor.compute(predictions=predictions, references=references)['meteor']
+    rouge = rouge.compute(predictions=predictions, references=references)
+    f1 = f1_score(valid_labels, valid_predictions, average='macro')
+    ppl = torch.exp(loss.mean()).item()
+
+    return {'bleu': bleu_score,
+            'meteor': meteor_score,
+            'rouge1': rouge['rouge1'],
+            'rouge2': rouge['rouge2'],
+            'rougeL': rouge['rougeL'],
+            'rougeLsum': rouge['rougeLsum'],
+            'f1': f1,
+            'perplexity': ppl
+            }
 
 
 def seed_everything(seed):
@@ -53,23 +89,20 @@ def main(args):
 
     trainable, total = model.get_nb_trainable_parameters()
     equal_len = len(f"Trainable: {trainable} | total: {total} | Percentage: {trainable / total * 100:.4f}%")
-    print('=' * equal_len)
-    print(f"Trainable: {trainable} | total: {total} | Percentage: {trainable / total * 100:.4f}%")
-    print('=' * equal_len)
 
     # Load the tokenizer
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_name,
                                                   model_max_length=args.max_len,
                                                   add_eos_token=True)
-        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token = tokenizer.unk_token
     except:
         name = 'meta-llama/' + model_name.split("/")[-1]
 
         tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=name,
                                                   model_max_length=args.max_len,
                                                   add_eos_token=True)
-        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token = tokenizer.unk_token
         tokenizer.save_pretrained(model_name)
 
     torch.cuda.empty_cache()
@@ -77,22 +110,28 @@ def main(args):
     # Load the dataset
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset('json', data_files=files)
-    dataset = dataset.map(lambda x: {'prompt': generate_prompt(x)})
+    dataset = dataset.map(lambda x: {'prompt': generate_prompt_batched(x)}, batched=True)
 
+    print('=' * equal_len)
+    print(f"Trainable: {trainable} | total: {total} | Percentage: {trainable / total * 100:.4f}%")
+    print('=' * equal_len)
     print(f'Train Dataset: {len(dataset["train"])} | Valid Dataset: {len(dataset["validation"])} | Test Dataset: {len(dataset["test"])}'.center(equal_len))
     print('=' * equal_len)
 
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, return_tensors='pt')
+    data_collator = DataCollatorForCompletionOnlyLM(tokenizer=tokenizer,
+                                                    instruction_template='<INST>',
+                                                    response_template='</INST>',
+                                                    mlm=False,
+                                                    return_tensors='pt'
+                                                    )
 
     # Early stopping callback and optimizer with scheduler
     num_training_steps = num_epochs * (len(dataset['train']) // (batch_size * accumulation_step))
     early_stopping = EarlyStoppingCallback(early_stopping_patience=num_epochs * 0.1)
     optimizer = AdamW(model.parameters(), lr=lr, eps=1e-5, weight_decay=0.1, betas=(0.9, 0.95))
-    scheduler = get_scheduler('linear',
-                              optimizer=optimizer,
-                              num_warmup_steps=warmup_step,
-                              num_training_steps=num_training_steps,
-                              )
+    scheduler = get_cosine_schedule_with_warmup(optimizer,
+                                                num_warmup_steps=warmup_step,
+                                                num_training_steps=num_training_steps)
 
     # Training the model
     training_args = TrainingArguments(per_device_train_batch_size=batch_size,
@@ -109,6 +148,7 @@ def main(args):
                                       save_strategy='epoch',
                                       load_best_model_at_end=True,
                                       greater_is_better=False,
+                                      metric_for_best_model='perplexity',
                                       logging_dir='./logs',
                                       report_to='wandb',
                                       run_name=f'{model_name.split("/")[-1]}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}',
@@ -124,7 +164,8 @@ def main(args):
                          data_collator=data_collator,
                          peft_config=lora_config,
                          callbacks=[early_stopping],
-                         optimizers=(optimizer, scheduler)
+                         optimizers=(optimizer, scheduler),
+                         compute_metrics=lambda x: compute_metrics(x, tokenizer)
                          )
 
     tester = SFTTrainer(model=model,
@@ -133,12 +174,13 @@ def main(args):
                         eval_dataset=dataset['test'],
                         data_collator=data_collator,
                         peft_config=lora_config,
+                        compute_metrics=lambda x: compute_metrics(x, tokenizer)
                         )
 
     model.config.use_cache = False
     trainer.train()
-    loss = tester.evaluate()['eval_loss']
-    print('Test Perplexity:', torch.exp(torch.tensor(loss)).item())
+    result = tester.evaluate()
+    print(result)
 
     # save the adapter weight
     model.save_pretrained(save_name)
