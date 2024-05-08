@@ -5,15 +5,20 @@ def generate_prompt(data_point):
     :return: a string containing the formatted prompt
     """
 
-    prefix_text = "This is conversation from a healthcare chat. Respond empathetically and informatively."
-    context = data_point['utterances'][0].split(":")[-1].strip()
-    response = data_point['utterances'][1].split(":")[-1].strip()
+    context = data_point[0].split(":")[-1].strip()
+    response = data_point[1].split(":")[-1].strip()
 
-    prompt = f"<s>[INST] {prefix_text} {context} [/INST]{response}</s>"
+    prompt = f"<INST> {context} </INST> {response}"
 
     return prompt
 
 
-def tokenization(examples, tokenizer):
-    return tokenizer(examples['prompt'], padding="max_length", truncation=True)
-    
+def generate_prompt_batched(data_point):
+    contexts = data_point['utterances']
+    prompts = []
+
+    for data in contexts:
+        prompt = generate_prompt(data)
+        prompts.append(prompt)
+
+    return prompts
