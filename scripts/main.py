@@ -13,6 +13,7 @@ from transformers import AdamW, get_cosine_schedule_with_warmup
 from peft import PeftModel
 from datasets import load_dataset
 from evaluate import load
+from torcheval.metrics import Perplexity
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
 from model.LLM import load_llm
@@ -25,11 +26,10 @@ def compute_metrics(eval_pred, tokenizer):
     bleu = load('bleu')
     meteor = load('meteor')
     rouge = load('rouge')
-    criterion = torch.nn.CrossEntropyLoss(ignore_index=-100)
+    perplexity = Perplexity(ignore_index=-100)
 
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=-1)
-    loss = criterion(torch.tensor(logits).view(-1, logits.shape[-1]), torch.tensor(labels).view(-1).long())
 
     valid_ids = labels != -100
     valid_predictions = predictions[valid_ids]
@@ -37,12 +37,13 @@ def compute_metrics(eval_pred, tokenizer):
 
     predictions = [tokenizer.decode(ids, skip_special_tokens=True) for ids in valid_predictions]
     references = [[tokenizer.decode(ids, skip_special_tokens=True)] for ids in valid_labels]
+    perplexity.update(torch.tensor(logits), torch.tensor(labels))
 
     bleu_score = bleu.compute(predictions=predictions, references=references)['bleu']
     meteor_score = meteor.compute(predictions=predictions, references=references)['meteor']
     rouge = rouge.compute(predictions=predictions, references=references)
     f1 = f1_score(valid_labels, valid_predictions, average='macro')
-    ppl = torch.exp(loss.mean()).item()
+    ppl = perplexity.compute().item()
 
     return {'bleu': bleu_score,
             'meteor': meteor_score,
