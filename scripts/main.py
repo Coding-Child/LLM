@@ -131,7 +131,7 @@ def main(args):
     # Early stopping callback and scheduler
     early_stopping = EarlyStoppingCallback(early_stopping_patience=num_epochs * 0.1)
     if using_scheduler:
-        scheduler_type = 'cosine_with_warmup'
+        scheduler_type = 'cosine'
     else:
         scheduler_type = None
 
