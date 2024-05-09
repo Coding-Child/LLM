@@ -13,11 +13,11 @@ def generate_prompt(data_point):
         speech = speech.strip()
 
         if speaker == 'doctor':
-            tag = '</INST>'
+            tag = ' </INST> '
         else:
-            tag = '<INST>'
+            tag = ' <INST> '
 
-        formated_prompt += f'{tag} {speech}'
+        formated_prompt += f'{tag}{speech}'
 
     return formated_prompt.strip()
 
