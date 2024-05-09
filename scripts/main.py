@@ -8,7 +8,6 @@ import torch
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import EarlyStoppingCallback, TrainingArguments
-from transformers import AdamW, get_cosine_schedule_with_warmup
 
 from peft import PeftModel
 from datasets import load_dataset, load_metric
@@ -77,6 +76,7 @@ def main(args):
     batch_size = args.batch_size
     accumulation_step = args.accumulation_step
     warmup_step = args.warmup_step
+    using_scheduler = args.using_scheduler
     num_epochs = args.num_epochs
     train_path = args.train_path
     val_path = args.val_path
@@ -128,13 +128,12 @@ def main(args):
                                                     return_tensors='pt'
                                                     )
 
-    # Early stopping callback and optimizer with scheduler
-    num_training_steps = num_epochs * (len(dataset['train']) // (batch_size * accumulation_step))
+    # Early stopping callback and scheduler
     early_stopping = EarlyStoppingCallback(early_stopping_patience=num_epochs * 0.1)
-    optimizer = AdamW(model.parameters(), lr=lr, eps=1e-5, weight_decay=0.1, betas=(0.9, 0.95))
-    scheduler = get_cosine_schedule_with_warmup(optimizer,
-                                                num_warmup_steps=warmup_step,
-                                                num_training_steps=num_training_steps)
+    if using_scheduler:
+        scheduler_type = 'cosine_with_warmup'
+    else:
+        scheduler_type = None
 
     # Training the model
     training_args = TrainingArguments(per_device_train_batch_size=batch_size,
@@ -143,7 +142,12 @@ def main(args):
                                       gradient_checkpointing=True,
                                       gradient_accumulation_steps=accumulation_step,
                                       max_grad_norm=1.0,
-                                      bf16=False,
+                                      weight_decay=0.1,
+                                      adam_beta1=0.9,
+                                      adam_beta2=0.95,
+                                      learning_rate=lr,
+                                      warmup_steps=warmup_step,
+                                      lr_scheduler_type=scheduler_type,
                                       logging_steps=5,
                                       output_dir=args.save_path,
                                       do_eval=True,
@@ -167,7 +171,6 @@ def main(args):
                          data_collator=data_collator,
                          peft_config=lora_config,
                          callbacks=[early_stopping],
-                         optimizers=(optimizer, scheduler),
                          compute_metrics=lambda x: compute_metrics(x, tokenizer)
                          )
 
