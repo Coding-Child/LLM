@@ -11,13 +11,12 @@ from transformers import EarlyStoppingCallback, TrainingArguments
 from transformers import AdamW, get_cosine_schedule_with_warmup
 
 from peft import PeftModel
-from datasets import load_dataset
-from evaluate import load
+from datasets import load_dataset, load_metric
 from torcheval.metrics import Perplexity
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
 from model.LLM import load_llm
-from Dataset.MedDialogueDataset import generate_prompt_batched
+from Dataset.MedDialogueDataset import generate_prompt_in_batch
 os.environ["WANDB_PROJECT"] = "llm_training"
 os.environ["WANDB_LOG_MODEL"] = "checkpoints"
 
@@ -114,7 +113,7 @@ def main(args):
     # Load the dataset
     files = {'train': train_path, 'validation': val_path, 'test': test_path}
     dataset = load_dataset('json', data_files=files)
-    dataset = dataset.map(lambda x: {'prompt': generate_prompt_batched(x)}, batched=True)
+    dataset = dataset.map(lambda x: {'prompt': generate_prompt_in_batch(x)}, batched=True, load_from_cache_file=False)
 
     print('=' * equal_len)
     print(f"Trainable: {trainable} | total: {total} | Percentage: {trainable / total * 100:.4f}%")
