@@ -143,7 +143,7 @@ def main(args):
                                       gradient_checkpointing=True,
                                       gradient_accumulation_steps=accumulation_step,
                                       max_grad_norm=1.0,
-                                      bf16=True,
+                                      bf16=False,
                                       logging_steps=5,
                                       output_dir=args.save_path,
                                       do_eval=True,
