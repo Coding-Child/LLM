@@ -5,15 +5,24 @@ def generate_prompt(data_point):
     :return: a string containing the formatted prompt
     """
 
-    context = data_point[0].split(":")[-1].strip()
-    response = data_point[1].split(":")[-1].strip()
+    formated_prompt = ''
 
-    prompt = f"<INST> {context} </INST> {response}"
+    for data in data_point:
+        speaker, speech = data.split(':', 1)
+        speaker = speaker.strip().lower()
+        speech = speech.strip()
 
-    return prompt
+        if speaker == 'doctor':
+            tag = '</INST>'
+        else:
+            tag = '<INST>'
+
+        formated_prompt += f'{tag} {speech}'
+
+    return formated_prompt.strip()
 
 
-def generate_prompt_batched(data_point):
+def generate_prompt_in_batch(data_point):
     contexts = data_point['utterances']
     prompts = []
 
