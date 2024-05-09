@@ -4,22 +4,20 @@ def generate_prompt(data_point):
     :param data_point: a dictionary containing the context and response
     :return: a string containing the formatted prompt
     """
+    prompt_parts = list()
+    for i in range(0, len(data_point), 2):
+        context = data_point[i].split(':', 1)[-1].strip()
+        prompt_parts.append(f'<INST> {context} </INST>')
 
-    formated_prompt = ''
+        try:
+            response = data_point[i + 1].split(':', 1)[-1].strip()
+            prompt_parts.append(f'{response}')
+        except:
+            pass
 
-    for data in data_point:
-        speaker, speech = data.split(':', 1)
-        speaker = speaker.strip().lower()
-        speech = speech.strip()
+    prompt = ' '.join(prompt_parts)
 
-        if speaker == 'doctor':
-            tag = ' </INST> '
-        else:
-            tag = ' <INST> '
-
-        formated_prompt += f'{tag}{speech}'
-
-    return formated_prompt.strip()
+    return prompt.strip()
 
 
 def generate_prompt_in_batch(data_point):
