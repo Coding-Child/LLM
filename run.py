@@ -12,6 +12,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--accumulation_step', type=int, default=1)
     parser.add_argument('-w', '--warmup_step', type=int, default=2000)
     parser.add_argument('-s', '--using_scheduler', type=bool, default=False)
+    parser.add_argument('-st', '--scheduler_type', type=str, default='linear')
     parser.add_argument('-e', '--num_epochs', type=int, default=500)
     parser.add_argument('-ml', '--max_len', type=int, default=1024)
     parser.add_argument('-trn', '--train_path', type=str, default='data/english-train.json')
