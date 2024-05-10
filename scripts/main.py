@@ -161,10 +161,12 @@ def main(args):
                                       load_best_model_at_end=True,
                                       greater_is_better=False,
                                       metric_for_best_model='perplexity',
+                                      optim='adamw_bnb_8bit',
                                       logging_dir='./logs',
                                       report_to='wandb',
                                       run_name=f'{model_name.split("/")[-1]}_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}',
-                                      dataloader_num_workers=4,
+                                      dataloader_num_workers=8,
+                                      dataloader_pin_memory=True,
                                       seed=args.seed,
                                       )
 
