@@ -75,7 +75,6 @@ def main(args):
     lr = args.learning_rate
     batch_size = args.batch_size
     accumulation_step = args.accumulation_step
-    warmup_step = args.warmup_step
     using_scheduler = args.using_scheduler
     num_epochs = args.num_epochs
     train_path = args.train_path
@@ -131,9 +130,11 @@ def main(args):
     # Early stopping callback and scheduler
     early_stopping = EarlyStoppingCallback(early_stopping_patience=num_epochs * 0.1)
     if using_scheduler:
+        warmup_step = args.warmup_step
         scheduler_type = 'cosine'
     else:
-        scheduler_type = None
+        warmup_step = 0
+        scheduler_type = 'constant'
 
     # Training the model
     training_args = TrainingArguments(per_device_train_batch_size=batch_size,
