@@ -76,6 +76,7 @@ def main(args):
     batch_size = args.batch_size
     accumulation_step = args.accumulation_step
     using_scheduler = args.using_scheduler
+    sch_type = args.scheduler_type
     num_epochs = args.num_epochs
     train_path = args.train_path
     val_path = args.val_path
@@ -129,9 +130,12 @@ def main(args):
 
     # Early stopping callback and scheduler
     early_stopping = EarlyStoppingCallback(early_stopping_patience=num_epochs * 0.1)
-    if using_scheduler:
+    if using_scheduler and sch_type == 'cosine':
         warmup_step = args.warmup_step
         scheduler_type = 'cosine'
+    elif using_scheduler and sch_type == 'reduce_on_plateau':
+        warmup_step = 0
+        scheduler_type = 'reduce_on_plateau'
     else:
         warmup_step = 0
         scheduler_type = 'constant'
